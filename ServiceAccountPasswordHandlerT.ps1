@@ -172,7 +172,7 @@ if ($exit) {Exit}
 #Testing Single service account
 $serviceData = $AccountList.spJoacim
 
-$newPassword = New-RandomPassword -PasswordLength 30
+$newPassword = New-RandomPassword -PasswordLength $settings.AccountPolicy.PasswordLength
 Set-ADAccountPassword -Identity "spJoacim" -NewPassword (ConvertTo-SecureString -string "$newPassword" -AsPlainText -Force)
 
 #ChangePasswordForAccount -serviceData $serviceData
