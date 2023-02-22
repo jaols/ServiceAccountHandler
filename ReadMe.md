@@ -43,7 +43,7 @@ The `ServiceAccountPasswordHandler.ps1` may be setup to run as a scheduled task 
 
 ## Practical usage of setting files
 
-The 
+The settings file has main parts
 
 ### A `json` file sample
 
