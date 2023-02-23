@@ -39,7 +39,7 @@ function Set-ApplicationPoolPassword {
     } else {
         #Call myself
         $scriptCode = "function Set-ApplicationPoolPassword { " + (Get-Command Set-ApplicationPoolPassword).Definition + "}`r`n" 
-        $scriptCode += "Set-ApplicationPoolPassword -AccountName $AccountName -Password $Password"
+        $scriptCode += "Set-ApplicationPoolPassword -AccountName $AccountName -Password '" + $Password + "'"
         $scriptBlock = [System.Management.Automation.ScriptBlock]::Create($scriptCode)
 
         $instances=Invoke-Command -Session $session -ScriptBlock $scriptBlock

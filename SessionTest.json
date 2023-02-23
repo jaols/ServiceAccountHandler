@@ -1,14 +1,9 @@
 {
-  "Get-AccessCredential:CredFilesPath":"C:\\Temp",
-  "Get-AccessCredential:AccessName":"ServiceAccountPasswordHandler",
   "AccountPolicy": {
     "PasswordLength": 20,
     "PasswordAge": 30,
     "ChangePeriod": 10
   },
-  "NoPSSessionServers": [
-    "non-window","notexistserver"
-  ],
   "ServiceAccounts": {
     "_info": "List of all service accounts to prtocess",
     "DPBCarina": {
