@@ -26,6 +26,21 @@ function Set-WindowsServicePassword {
     if ([string]::IsNullOrEmpty($ComputerName) -or $ComputerName -ieq "local" -or $ComputerName -eq ".") {        
         $instances=@()
         try {
+            Get-WmiObject win32_service -Filter "startname like '%$AccountName%'" | ForEach-Object {
+                $result=$_.change($null,$null,$null,$null,$null,$null,$null,$Password)
+                
+                #Restart of service need to be improved with error checks
+                #if ($_.Started -eq "True") {
+                #    $null=$_.StopService()
+                #    $null=$_.StartService()
+                #}
+
+                if ($result.ReturnValue -eq 0) {
+                    $instances+=$_.DisplayName +  " - " + $_.StartName
+                } else {
+                    throw ("Could not set new password. ErrorCode: " + $result.ReturnValue)
+                }
+            } 
         } catch {            
             $instances+=$PSItem
         }        

@@ -8,7 +8,10 @@
   * [The account data file](#the-account-data-file)
     + [Account data `json` file samples](#account--json--file-samples)
   * [The art of logging](#the-art-of-logging)
-  * [Locally customized password handlers](#locally-customized-password-handlers)
+  * [Down the rabbit hole](#down-the-rabbit-hole)
+    + [Locally customized password handlers](#locally-customized-password-handlers)
+    + [PSsessions](#pssessions)
+    + [Temporary password](#temporary-password)
 
 ## Introduction
 
@@ -50,7 +53,6 @@ The provided `DomainName.json` is an environment settings file to be renamed for
 6. The `PSJumpStart.json`file in the module folder for PSJumpStart.
 
 The `ServiceAccountPasswordHandler.ps1` may be setup to run as a scheduled task using `runServiceAccountPasswordHandler.cmd`. The `cmd` file will catch exceptions otherwize lost in Task Scheduler.
-
 
 ## The account data file 
 
@@ -126,11 +128,26 @@ The sample above is a bare minimum sample with local only processing and no pres
 
 The `json` environment settings files may be used to setup the logging environment by setting default arguments for the `Msg`function. It may write output to log files, event log or output to console only. Please remember to run any PowerShell as Adminstrator the first time to create any custom log name in the event log. The use of the settings files will enable you to set different event log names, but use this carefully as any script registered for a log name cannot write to another event log name without removing the source using `Remove-Eventlog`.
 
-## Locally customized password handlers
+## Down the rabbit hole
+
+### Locally customized password handlers
 
 PSJumpStart will load any `ps1` function files from the local `LocalLib` folder. The Powershell files in this solution will call any `Set-[$Type]Password` in this folder to set passwords. Please use the set standard for input (arguments) and output (return object) for best result. Use the included `Set-xxxPassword.ps1` file as a template.
 
 When a customized password type is in place the type name may be used in the account data `json` file.
 
+### PSsessions
 
+The handler will (re-)use created PSsessions when executing `Invoke-Command` on remote computers. It is possible to prep those PSsessions with credentials using `New-HandlerPSsessions.ps1`. 
 
+Support for port option SPN is in place for PSsessions due to a problem described here - https://www.vincecarbone.com/2021/06/11/owershell-remoting-results-in-errorcode-0x80090322/
+
+To use port option on a server you need to register SPN with port number 5585:
+```
+setspn -s HTTP/servername:5985 servername
+```
+The session handling may be improved at some point.
+
+### Temporary password
+
+The `Set-ServiceAccountPassword.ps1` file is included for practical reasons. Some times you really need to know the password for a service account. The command will take a new password as an argument and mark the used account data file to change password at next runtime. 

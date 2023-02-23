@@ -195,7 +195,7 @@ if ($exit) {Exit}
 
 #Finally we get to do some real work!
 foreach ($serviceAccount in ($AccountList | Get-Member -MemberType NoteProperty)) {
-    Msg "Process $($serviceAccount.Name)"
+    Msg "Check $($serviceAccount.Name)"
 
     $serviceData = $AccountList.($serviceAccount.Name)
 

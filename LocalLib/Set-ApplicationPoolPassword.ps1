@@ -30,11 +30,11 @@ function Set-ApplicationPoolPassword {
 
         foreach ($pool in $applicationPools) {
             Write-Verbose ($pool.Name + ":" + $pool.State)
-            $instances+=$pool.Name + ";" + $pool.processModel.userName            
+            $instances+=$pool.Name + " - " + $pool.processModel.userName
             $pool.processModel.password = $Password
             $pool | Set-Item
             $pool.Recycle()
-            Write-Verbose ($pool.Name + ":" + $pool.State)
+            Write-Verbose ("Recycled: " + $pool.Name + ":" + $pool.State)
         }
     } else {
         #Call myself

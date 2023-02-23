@@ -30,7 +30,7 @@ function Set-ScheduleTaskPassword {
                 Write-Verbose ("Process " + $_.TaskName)            
                 $t=Set-ScheduledTask -TaskName $_.TaskName -TaskPath $_.TaskPath -User $_.Principal.UserId -Password $Password -ErrorAction Stop
 
-                $instances+= ($t.TaskName + ";" + $t.Principal.UserId)
+                $instances+= ($t.TaskName +  " - " + $t.Principal.UserId)
             }
         } catch {            
             $instances+=$PSItem
