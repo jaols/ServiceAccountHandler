@@ -30,7 +30,7 @@ This solution is based on the PSJumpStart module found in [PowerShell Gallery](h
 
 ## Installation
 
-Run a PowerShell session as Administrator to get a global installation of the PSJumpstart module with the command `Install-Module -Name PSJumpStart`. It is also possible to download a `zip` file from [GitHub](https://github.com/jaols/PSJumpStart) and copy the content to the local modules folder. The typical target folder would be `C:\Program Files\WindowsPowerShell\Modules\PSJumpStart\nnn` where `nnn` is the current version of the module.
+Run a PowerShell session as Administrator to get a global installation of the PSJumpstart module with the command `Install-Module -Name PSJumpStart`. It is also possible to download a `zip` file from [GitHub](https://github.com/jaols/PSJumpStart) and copy the content to the local modules folder. The typical target folder would be `C:\Program Files\WindowsPowerShell\Modules\PSJumpStart\n.n.n` where `n.n.n` is the current version of the module.
 
 This module may also be installed from [PowerShell Gallery](https://www.powershellgallery.com/packages/ServiceAccountHandler) or downloaded from [GitHub](https://github.com/jaols/ServiceAccountHandler)
 
