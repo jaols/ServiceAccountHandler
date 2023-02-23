@@ -1,0 +1,11 @@
+{
+  "AccountPolicy":  {
+              "PasswordLength":  20,
+              "PasswordAge":  90,
+              "ChangePeriod":  15
+            },
+  "ServiceAccounts":  {
+              "svc-FooBar":  "",
+              "svc-FooBarTwo":  ""
+            }
+}

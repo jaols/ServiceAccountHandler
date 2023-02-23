@@ -1,19 +1,20 @@
-# ServiceAccountPasswordHandler
+# ServiceAccountHandler
 
   * [Introduction](#introduction) 
   * [Why?](#why-)
   * [Requirements](#requirements)
   * [Installation](#installation)
-  * [Practical usage of setting files](#practical-usage-of-setting-files)
-    + [A `json` file sample](#a--json--file-sample)
-  * [Extending with custom systems](#how-to-debug)
-    + [Global debugging](#global-debugging)
-    + [Specific script debugging](#specific-script-debugging)
-    + [Function debugging](#function-debugging)
+  * [Usage overview](#usage-overview)
+  * [The account data file](#the-account-data-file)
+    + [Account data `json` file samples](#account--json--file-samples)
+  * [The art of logging](#the-art-of-logging)
+  * [Locally customized password handlers](#locally-customized-password-handlers)
 
 ## Introduction
 
-The ServiceAccountPasswordHandler solution is a set of PowerShell scripts and `json` files that will make it possible to finally be able to change passwords for service accounts in a controlled way. The solution is primarally targeted for Windows.  
+The ServiceAccountHandler solution is a set of PowerShell scripts and `json` files that will make it possible to finally be able to change passwords for service accounts in a controlled way. The solution is highly customizable by using "plug-in" functions.
+
+The solution is primarally targeted for Windows.  
 
 ## Why?
 
@@ -21,7 +22,7 @@ Because we want to get control of service account usage. A service account used 
 
 Because no one should know a password to a service account. I's a service account! Having said that it is of course possible to set a temporary known password.
 
-Because we want to secure 
+Because we want to secure our environment.
 
 ## Requirements
 
@@ -31,42 +32,105 @@ This solution is based on the PSJumpStart module found in [PowerShell Gallery](h
 
 Run a PowerShell session as Administrator to get a global installation of the PSJumpstart module with the command `Install-Module -Name PSJumpStart`. It is also possible to download a `zip` file from [GitHub](https://github.com/jaols/PSJumpStart) and copy the content to the local modules folder. The typical target folder would be `C:\Program Files\WindowsPowerShell\Modules\PSJumpStart\nnn` where `nnn` is the current version of the module.
 
-This module may also be installed from PowerShell Gallery or GitHub
+This module may also be installed from [PowerShell Gallery](https://www.powershellgallery.com/packages/ServiceAccountHandler) or downloaded from [GitHub](https://github.com/jaols/ServiceAccountHandler)
 
-## Usage
+## Usage overview
 
-Please remember to run `ServiceAccountPasswordHandler.ps1` with elevated rights or you may miss out on objects that should be processed. 
+Please remember to run `ServiceAccountPasswordHandler.ps1` with elevated rights or you may miss out on objects that should be processed. In fact you'll get an error if you don't.
 
-It is possible to have a central execution of password change for all service accounts with one input `json` or a distributed solution with several input files. The key issue is never having the same account name in two files.
+It is possible to have a central execution of password change for all service accounts with one input `json` file or a distributed solution (on selected servers) with several input files. The key issue is never having the same account name in two files wherever they may be. The default setting file for `ServiceAccountPasswordHandler.ps1` is `ServiceAccountPasswordHandler.json`. This may be used for account data as well as environment settings, or you may create seperate environment setting files. 
+
+The provided `DomainName.json` is an environment settings file to be renamed for local usage. The environment setting files are read in the following order (and priority):
+
+1. User logon ID file name in script folder
+2. Logon provider file name (domain or local machine) in script folder
+3. Script name file in script folder
+4. Logon provider file name (domain or local machine) in PSJumpStart module folder
+5. Any other loaded module name in the PSJumpStart module folder (for instance an `ActiveDirectory.json` file)
+6. The `PSJumpStart.json`file in the module folder for PSJumpStart.
 
 The `ServiceAccountPasswordHandler.ps1` may be setup to run as a scheduled task using `runServiceAccountPasswordHandler.cmd`. The `cmd` file will catch exceptions otherwize lost in Task Scheduler.
 
-## Practical usage of setting files
 
-The settings file has main parts
+## The account data file 
 
-### A `json` file sample
+The account data `json` file has two main sectionns:
 
-These files may be used to set default values for script input arguments as well as function call arguments. The syntax for setting default values for standard functions follow the `$PSDefaultParameterValues`
+- `AccountPolicy` has the settings for account settings, such as password length and age.
+- `ServiceAccounts` is a list of service accounts to process. Each entry in the list has a set of sub-settings.
 
-`Function-Name:Argument-Name=value/code`
+There is also a setting for `NoSessionServer` list to indicate any servers not possible to reach by a PSsession object.
 
-To use a `json` file as a repository for standard input argument values to a `.ps1` you remove the function name part of the line above
+### Account data `json` file samples
 
-`Argument-Name=value/code`
+```json
+{
+  "AccountPolicy": {
+    "PasswordLength": 20,
+    "PasswordAge": 90,
+    "ChangePeriod": 15
+  },
+  "NoPSSessionServers": [
+    "non-window",
+    "notexistserver"
+  ],
+  "ServiceAccounts": {
+    "svc-Foo": {
+      "Servers": {
+        "vmServer1": [
+          "ApplicationPool",
+          "ScheduleTask"
+        ],
+        "vmServer2": [
+          "WindowService",
+          "ScheduleTask"
+        ],
+        "vmServer3": [
+          "ApplicationPool"
+        ],
+        "notexistserver": [],
+        "non-window": []
+      }      
+    },
+    "svc-Bar": {
+      "Servers": {
+        "local": [],
+        "vmServer2": []
+      }      
+    }
+  }
+}
+```
+The sample above will generate a random 20 character password at a 90 days interval with a change period of 15 days. The account names to process are *svc-Foo* and *svc-Bar*. The *svc-Foo* account is used on 3 servers with preset password types. 
+The *svc-Bar* account is used on 2 servers without preset service types. The process will use ALL found `Set-[$Type]Password` for enumeration and settiung of passwords. 
 
-So if you are using a site name argument in several scripts  ,`[string]$SiteName` , you may create a logon domain named `dfp`file with content `SiteName="www.whatever.com"`
+The `local` (or `localhost`) name points to the local host, no less.
 
-Call the function `Get-GlobalDefaultsFromDfpFiles` to get content for `$PSDefaultParameterValues` and the local function `GetLocalDefaultsFromDfpFiles` to set local script variables. Or simply use the template file `PSJumpStartStdTemplateWithArgumentsDfp.ps1` as a starting point.
+```json
+{
+  "AccountPolicy":  {
+              "PasswordLength":  20,
+              "PasswordAge":  90,
+              "ChangePeriod":  15
+            },
+  "ServiceAccounts":  {
+              "svc-ServiceOne":  "",
+              "svc-ServiceTwo":  ""
+            }
+}
+```
 
+The sample above is a bare minimum sample with local only processing and no preset password types.
 
-### The art of logging
+## The art of logging
 
-The `json` files may also be used to setup the logging environment by setting default variables for the `Msg`function. It may write output to log files, event log or output to console only. Please remember to run any PowerShell as Adminstrator the first time to create any custom log name in the event log. The use of the settings files will enable you to set different event log names, but use this carefully as any script registered for a log name cannot write to another event log name without removing the source using `Remove-Eventlog`.
+The `json` environment settings files may be used to setup the logging environment by setting default arguments for the `Msg`function. It may write output to log files, event log or output to console only. Please remember to run any PowerShell as Adminstrator the first time to create any custom log name in the event log. The use of the settings files will enable you to set different event log names, but use this carefully as any script registered for a log name cannot write to another event log name without removing the source using `Remove-Eventlog`.
 
-## Locally customized functions
+## Locally customized password handlers
 
-PSJumpStart will load any `ps1` function files from the local `LocalLib` folder. The Powershell files in this solution will call any `Set-[$Type]Password` in this folder to set passwords. Please use the set standard for input (arguments) and output (return object) for best result.
+PSJumpStart will load any `ps1` function files from the local `LocalLib` folder. The Powershell files in this solution will call any `Set-[$Type]Password` in this folder to set passwords. Please use the set standard for input (arguments) and output (return object) for best result. Use the included `Set-xxxPassword.ps1` file as a template.
+
+When a customized password type is in place the type name may be used in the account data `json` file.
 
 
 

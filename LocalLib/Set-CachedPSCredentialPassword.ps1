@@ -1,4 +1,4 @@
-function Set-ScheduleTaskPassword {
+function Set-CachedPSCredentialPassword {
     <#
     .Synopsis
         Set new password for an account running schedule task(s)
@@ -26,25 +26,18 @@ function Set-ScheduleTaskPassword {
     if ([string]::IsNullOrEmpty($ComputerName) -or $ComputerName -ieq "local" -or $ComputerName -eq ".") {        
         $instances=@()
         try {
-            Get-ScheduledTask | Where-Object { $_.Principal.UserId -like "*$AccountName" } | ForEach-Object {
-                Write-Verbose ("Process " + $_.TaskName)            
-                $t=Set-ScheduledTask -TaskName $_.TaskName -TaskPath $_.TaskPath -User $_.Principal.UserId -Password $Password -ErrorAction Stop
-
-                $instances+= ($t.TaskName + ";" + $t.Principal.UserId)
-            }
         } catch {            
             $instances+=$PSItem
         }        
         
     } else {
         #Call myself
-        $scriptCode = "function Set-ScheduleTaskPassword { " + (Get-Command Set-ScheduleTaskPassword).Definition + "}`r`n" 
-        $scriptCode += "Set-ScheduleTaskPassword -AccountName $AccountName -Password $Password"
+        $scriptCode = "function Set-CachedPSCredentialPassword { " + (Get-Command Set-CachedPSCredentialPassword).Definition + "}`r`n" 
+        $scriptCode += "Set-CachedPSCredentialPassword -AccountName $AccountName -Password $Password"
         $scriptBlock = [System.Management.Automation.ScriptBlock]::Create($scriptCode)
 
         $instances=Invoke-Command -Session $session -ScriptBlock $scriptBlock
     }
 
-    $instances
-    
+    $instances    
 }

@@ -81,10 +81,47 @@ function Get-LocalDefaultVariables {
 function  ChangePasswordForAccount {
     [CmdletBinding(SupportsShouldProcess = $True)]
     param (
-        $serviceData
+        [string]$AccountName,
+        [int]$PasswordLength,
+        [PSCustomObject]$serviceData,
+        [hashtable]$sessionHash,
+        [Object[]]$supportedTypes   
     )
+    $newPassword = New-RandomPassword -PasswordLength $PasswordLength
+    Set-ADAccountPassword -Identity $AccountName -NewPassword (ConvertTo-SecureString -string "$newPassword" -AsPlainText -Force)
     
-    $serviceData
+    #ChangePasswordForAccount -serviceData $serviceData
+    foreach ($server in ($serviceData.Servers | Get-Member -MemberType NoteProperty)) {
+    
+        $CommandArguments = @{
+            password="$newPassword"
+            AccountName=$AccountName
+            ComputerName=$server.Name
+            Verbose=$False
+        }
+    
+        if ($SessionHash.ContainsKey($server.Name)) {
+            $CommandArguments.Add("session",$SessionHash[$server.Name])        
+        }
+        
+        $passwordTypes = $serviceData.Servers.($server.Name)
+        if ([string]::IsNullOrEmpty($passwordTypes)) {
+            $passwordTypes=$supportedTypes
+        }
+    
+        foreach($PassWordType in $passwordTypes) {
+            Msg ("Process $PassWordType on " + $server.Name)
+                    
+            $Command = "Set-" + $PassWordType + "Password @CommandArguments"
+    
+            $foundInstances=$null        
+            $foundInstances = Invoke-Expression $Command
+    
+            Msg ("Found instances [$PassWordType];" + ($foundInstances -join ' | '))
+        }
+    }
+    
+    
 } 
 #endregion
 
@@ -147,47 +184,9 @@ if ($exit) {Exit}
 
 
 
-#Testing Single service account
-$serviceData = $AccountList.spJoacim
-
-$newPassword = New-RandomPassword -PasswordLength $settings.AccountPolicy.PasswordLength
-Set-ADAccountPassword -Identity "spJoacim" -NewPassword (ConvertTo-SecureString -string "$newPassword" -AsPlainText -Force)
-
-#ChangePasswordForAccount -serviceData $serviceData
-foreach ($server in ($serviceData.Servers | Get-Member -MemberType NoteProperty)) {
-
-    $CommandArguments = @{
-        password="$newPassword"
-        AccountName="spJoacim"
-        ComputerName=$server.Name
-        Verbose=$False
-    }
-
-    if ($SessionHash.ContainsKey($server.Name)) {
-        $CommandArguments.Add("session",$SessionHash[$server.Name])        
-    }
-    
-    $passwordTypes = $serviceData.Servers.($server.Name)
-    if ([string]::IsNullOrEmpty($passwordTypes)) {
-        $passwordTypes=$supportedTypes
-    }
-
-    foreach($PassWordType in $passwordTypes) {
-        Msg ("Process $PassWordType on " + $server.Name)
-                
-        $Command = "Set-" + $PassWordType + "Password @CommandArguments"
-
-        $foundInstances=$null        
-        $foundInstances = Invoke-Expression $Command
-
-        Msg ("Found instances [$PassWordType];" + ($foundInstances -join ' | '))
-    }
-}
 
 
 
-
-Exit
 
 
 foreach ($serviceAccount in ($AccountList | Get-Member -MemberType NoteProperty)) {
@@ -209,18 +208,19 @@ foreach ($serviceAccount in ($AccountList | Get-Member -MemberType NoteProperty)
         Write-Verbose ("Due change " + $lastChanged.AddDays($settings.AccountPolicy.PasswordAge) + " - Random [$spanDays] due date: " + (Get-Date).AddDays($spanDays))
         
         if ($lastChanged.AddDays($settings.AccountPolicy.PasswordAge) -le (Get-Date)) {
-            "Its long overdue!!"
+            #Long overdue. Change now!
 
             $settings.ServiceAccounts.($serviceAccount.Name) | Add-Member -MemberType NoteProperty -Name "LastChanged" -Value (Get-Date -Format "yyyy-MM-dd") -Force
         }
         elseif ($lastChanged.AddDays($settings.AccountPolicy.PasswordAge) -le (Get-Date).AddDays($spanDays)) {
-            "Random change!"
+            #Change within interval at ramdom selection
+
             $settings.ServiceAccounts.($serviceAccount.Name) | Add-Member -MemberType NoteProperty -Name "LastChanged" -Value (Get-Date -Format "yyyy-MM-dd") -Force
         }                         
     }
 }
 
 #Save lastchanged dates
-$settings | ConvertTo-Json -Depth 10 | ForEach-Object { $_ -replace "    ", "  " } | Set-Content ($jsonFile + ".txt") -Force 
+#$settings | ConvertTo-Json -Depth 10 | ForEach-Object { $_ -replace "    ", "  " } | Set-Content ($jsonFile + ".txt") -Force 
 
 Msg "End Execution"

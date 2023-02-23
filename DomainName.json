@@ -1,0 +1,7 @@
+{
+    "Msg:useFileLog":  false,
+    "*:Confirm":  false,
+    "Msg:useEventLog":  false,
+    "Msg:logFilePath":  "($ExecutionContext.SessionState.Path.CurrentLocation.Path)",    
+    "Msg:EventLogName":  "ServiceAccountHandler"
+}

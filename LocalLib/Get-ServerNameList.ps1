@@ -9,11 +9,13 @@ function Get-ServerNameList {
         if ($serviceAccount.Name -ine "_info") {
             Write-Verbose "-- Get servers for $($serviceAccount.Name) --"
             $serviceData = $AccountList.($serviceAccount.Name)
-            foreach ($Server in $serviceData.Servers | Get-Member -MemberType NoteProperty) {
-                #Only gather approriate names.
-                if ($Server.Name -ine "_info" -and $Server.Name -ine "local" -and $Server.Name -ine "localhost") {
-                    Write-Verbose ("Add " + $Server.Name)
-                    $ServerList += $Server.Name
+            if ($serviceData.Servers) {
+                foreach ($Server in $serviceData.Servers | Get-Member -MemberType NoteProperty) {
+                    #Only gather approriate names.
+                    if ($Server.Name -ine "_info" -and $Server.Name -ine "local" -and $Server.Name -ine "localhost") {
+                        Write-Verbose ("Add " + $Server.Name)
+                        $ServerList += $Server.Name
+                    }
                 }
             }
         }        

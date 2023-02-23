@@ -1,4 +1,5 @@
-function Set-WindowsServicePassword {
+
+function Set-xxxPassword {
     <#
     .Synopsis
         Set new password for an account running schedule task(s)
@@ -14,7 +15,7 @@ function Set-WindowsServicePassword {
         Existing PSsession object to remote computer
     
     #>
-    [CmdletBinding(SupportsShouldProcess = $True)]
+    [CmdletBinding(SupportsShouldProcess = $False)]
     param (
         [Parameter(mandatory=$true)]
         [string]$AccountName,
@@ -26,18 +27,20 @@ function Set-WindowsServicePassword {
     if ([string]::IsNullOrEmpty($ComputerName) -or $ComputerName -ieq "local" -or $ComputerName -eq ".") {        
         $instances=@()
         try {
+            Write-Verbose "Local execution. Verbose visible."
         } catch {            
             $instances+=$PSItem
         }        
         
     } else {
         #Call myself
-        $scriptCode = "function Set-WindowsServicePassword { " + (Get-Command Set-WindowsServicePassword).Definition + "}`r`n" 
-        $scriptCode += "Set-WindowsServicePassword -AccountName $AccountName -Password $Password"
+        $scriptCode = "function Set-xxxPassword { " + (Get-Command Set-xxxPassword).Definition + "}`r`n" 
+        $scriptCode += "Set-xxxPassword -AccountName $AccountName -Password $Password"
         $scriptBlock = [System.Management.Automation.ScriptBlock]::Create($scriptCode)
-
+        
+        Write-Verbose "Remote execution. No more verbose messages."
         $instances=Invoke-Command -Session $session -ScriptBlock $scriptBlock
     }
 
-    $instances    
+    $instances
 }

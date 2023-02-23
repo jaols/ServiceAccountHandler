@@ -1,33 +1,32 @@
 <#
 .Synopsis
-    Setup sessions used by other PS-files in this solution
+    Set a temporary password for a specific service account
 .DESCRIPTION
-    Removes any previous sessions and creates new ones. Errors will be logged for diagnistic purposes.
+    This may be used for setting a known password (maybe to be able to edit a scheduled task). The password will be valid until next run of ServiceAccountPasswordHandler.ps1
     
 .PARAMETER AccountDataFile
    	Input JSON file with account data to process
-.Parameter Credential
-    A PSCredential to use when establising connections.    
-   	
+.Parameter AccountName
+    The user name to process (must be included in the JSON file)
+.Parameter TempPassword
+    The password to set. Remember to use domain policy password syntax
 .Notes
     Author: Jack Olsson
     Changes:
 
 .Example
-    New-HandlerPSsessions -AccountDataFile ServiceAccountPasswordHandler.json 
+    New-HandlerPSsessions -AccountDataFile ServiceAccountPasswordHandler.json -AccountName svc-Test -TempPassword "UsingTheP@assword4Now!"
 
-    Run command with current credentials to establish sessions (same as hendler code)
-
-.Example    
-    New-HandlerPSsessions -AccountDataFile ServiceAccountPasswordHandler.json -Credential (Get-AccessCredential -AccessName "ServiceAccountPasswordHandler")
-
-    Use Get-AccessCredential (PSJumpStart) to retreive credential. The function will use a XML-file or genereate XML-file from dialog.
+    Change the password and set new password for all service types in ServiceAccountPasswordHandler.json
 #>
-[CmdletBinding(SupportsShouldProcess = $True)]
+[CmdletBinding(SupportsShouldProcess = $False)]
 param (
     [Parameter(mandatory = $true)]
     [string]$AccountDataFile,
-    [pscredential]$Credential
+    [Parameter(mandatory = $true)]
+    [string]$AccountName,
+    [Parameter(mandatory = $true)]
+    [string]$TempPassword
 )
 
 #region local functions 
@@ -111,6 +110,13 @@ $PSDefaultParameterValues = Get-GlobalDefaultsFromJsonFiles $MyInvocation -Verbo
 
 Msg "Start Execution"
 
+#Check elevated execution
+$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (!$currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Msg "Pleas re-run command as Administrator" -Type Error
+    Exit        
+}
+
 if (!(Test-Path $AccountDataFile)) {
     throw [System.IO.FileNotFoundException] "Missing input file [$AccountDataFile]"
 }
@@ -123,53 +129,63 @@ catch {
 }
 
 $AccountList = $settings.ServiceAccounts
-$ServerList = Get-ServerNameList $settings.ServiceAccounts
-$ExcludeList = $settings.NoPSSessionServers
+$serviceData = $AccountList.($AccountName)
 
-$option = New-PSSessionOption -IncludePortInSPN
+#Use specific serverlist for account
+if ($serviceData.Servers) {
+    $ServerList = $serviceData.Servers | 
+                    Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | 
+                    Where-Object {$_ -ine "local" -and $_ -ine "_info" -and $_ -ine "localhost"}
+}
+$SessionHash = Get-ServerSessions $ServerList -ExcludeList $settings.NoPSSessionServers
 
-foreach ($server in $ServerList) {
-    if (!($ExcludeList -contains $server)) {
-        Msg "Get session for $Server"
-        
-        #Remove any previous session
-        Remove-PSSession -Name $server -ErrorAction SilentlyContinue
-        
-        try {
-            $adServer = Get-ADComputer -Identity $server -Properties ServicePrincipalName
-        }
-        catch {
-            Msg "Cannot find AD object for ($server): $PSItem" -Type Error
-            continue
-        }
+Set-ADAccountPassword -Identity $AccountName -NewPassword (ConvertTo-SecureString -string "$TempPassword" -AsPlainText -Force)
 
-        $sessionArgs = @{
-            "ErrorAction" = "Stop"
-            "Name"        = $Server
-            "Computer"    = $adServer.Name
-        }
-        if ($Credential) {
-            $sessionArgs.Add("Credential", $Credential)
-        }
-
-        #We use HTTP std port at this point.
-        if ($adServer.ServicePrincipalName -like "*5985") {
-            Write-Verbose "New Port-session"  
-            $sessionArgs.Add("SessionOption", $option)
-        }                
-
-        try {
-            $session = New-PSSession @sessionArgs
-        }
-        catch {
-            Msg "Cannot establish session to ($server): $PSItem" -Type Error
-            continue
-        }
-    }
-    else {
-        Msg "Excluded server $Server"
+#Server list or local only
+if ($serviceData.Servers) {
+    $processServers=$serviceData.Servers | Get-Member -MemberType NoteProperty
+} else {
+    $processServers=[PSCustomObject]@{
+        Name="local"
     }
 }
+
+foreach ($server in $processServers) {
+
+    $CommandArguments = @{
+        password     = "$TempPassword"
+        AccountName  = $AccountName
+        ComputerName = $server.Name
+        Verbose      = $False
+    }
+
+    if ($SessionHash.ContainsKey($server.Name)) {
+        $CommandArguments.Add("session", $SessionHash[$server.Name])
+    }
+    
+    $passwordTypes = $serviceData.Servers.($server.Name)
+    if ([string]::IsNullOrEmpty($passwordTypes)) {
+        $passwordTypes = $supportedTypes
+    }
+
+    foreach ($PassWordType in $passwordTypes) {
+        Msg ("Process $PassWordType on " + $server.Name)
+                
+        $Command = "Set-" + $PassWordType + "Password @CommandArguments"
+
+        $foundInstances = $null        
+        $foundInstances = Invoke-Expression $Command
+
+        Msg ("Found instances [$PassWordType];" + ($foundInstances -join ' | '))
+    }
+}
+
+$backDate = (Get-Date).AddDays(-$settings.AccountPolicy.PasswordAge) 
+Msg "Set last changed to [$backDate] to force change at next ordinary password change execution"
+$settings.ServiceAccounts.$AccountName | Add-Member -MemberType NoteProperty -Name "LastChanged" -Value ($backDate.ToString("yyyy-MM-dd")) -Force
+
+#Save lastchanged dates (along with everything else)
+$settings | ConvertTo-Json -Depth 10 | ForEach-Object { $_ -replace "    ", "  " } | Set-Content ($AccountDataFile) -Force
 
 
 Msg "End Execution"

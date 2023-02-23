@@ -5,14 +5,17 @@
     Keep service accounts password up to date 
 .PARAMETER AccountDataFile
    	Input JSON file with account data to process
+.PARAMETER NotAdmin
+   	Bypass check for eleveted execution
 
 .Notes
     Author: Jack Olsson
     Changes:
 #>
-[CmdletBinding(SupportsShouldProcess = $True)]
+[CmdletBinding(SupportsShouldProcess = $False)]
 param (
-    [string]$AccountDataFile
+    [string]$AccountDataFile,
+    [switch]$NotAdmin
 )
 
 #region local functions 
@@ -81,12 +84,54 @@ function Get-LocalDefaultVariables {
 function  ChangePasswordForAccount {
     [CmdletBinding(SupportsShouldProcess = $True)]
     param (
-        $serviceData
+        [string]$AccountName,
+        [int]$PasswordLength,
+        [PSCustomObject]$serviceData,
+        [hashtable]$sessionHash,
+        [Object[]]$supportedTypes   
     )
+    $newPassword = New-RandomPassword -PasswordLength $PasswordLength
+    Set-ADAccountPassword -Identity $AccountName -NewPassword (ConvertTo-SecureString -string "$newPassword" -AsPlainText -Force)
     
-    $serviceData
+    #Server list or local only
+    if ($serviceData.Servers) {
+        $processServers=$serviceData.Servers | Get-Member -MemberType NoteProperty
+    } else {
+        $processServers=[PSCustomObject]@{
+            Name="local"
+        }
+    }
 
-
+    #ChangePasswordForAccount -serviceData $serviceData
+    foreach ($server in $processServers) {
+    
+        $CommandArguments = @{
+            password="$newPassword"
+            AccountName=$AccountName
+            ComputerName=$server.Name
+            Verbose=$False
+        }
+    
+        if ($SessionHash.ContainsKey($server.Name)) {
+            $CommandArguments.Add("session",$SessionHash[$server.Name])        
+        }
+        
+        $passwordTypes = $serviceData.Servers.($server.Name)
+        if ([string]::IsNullOrEmpty($passwordTypes)) {
+            $passwordTypes=$supportedTypes
+        }
+    
+        foreach($PassWordType in $passwordTypes) {
+            Msg ("Process $PassWordType on " + $server.Name)
+                    
+            $Command = "Set-" + $PassWordType + "Password @CommandArguments"
+    
+            $foundInstances=$null        
+            $foundInstances = Invoke-Expression $Command
+    
+            Msg ("Found instances [$PassWordType];" + ($foundInstances -join ' | '))
+        }
+    }       
 } 
 #endregion
 
@@ -106,6 +151,15 @@ $PSDefaultParameterValues = Get-GlobalDefaultsFromJsonFiles $MyInvocation -Verbo
 
 Msg "Start Execution"
 
+if (!$NotAdmin) {
+    #Check elevated execution
+    $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+    if (!$currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        Msg "Pleas re-run command as Administrator" -Type Error
+        Exit        
+    }
+}
+
 if ([string]::IsNullOrEmpty($AccountDataFile)) {
     $AccountDataFile = $MyInvocation.MyCommand.Definition -replace ".ps1$", ".json"
 }
@@ -124,29 +178,22 @@ $AccountList = $settings.ServiceAccounts
 $ServerList = Get-ServerNameList $settings.ServiceAccounts
 $SessionHash = Get-ServerSessions $ServerList -ExcludeList $settings.NoPSSessionServers
 
-$serviceData = $AccountList.localAccount
-#ChangePasswordForAccount -serviceData $serviceData
+#Get All Available password types
+$supportedTypes=Get-Command -Name Set-*Password -Module PSJumpStart | Select-Object -ExpandProperty Name | ForEach-Object {$_ -replace "Set-","" -replace "Password",""}
 
-$passWord = "FAULTY-12qwaszx!"
-$Account = "DPBCarina"
-$PassWordType = "ApplicationPool"
-$Command = "Set-" + $PassWordType + "Password -AccountName " + $Account + " -Password " + $passWord + " -Verbose"
-
-$x = Invoke-Expression $Command
-
-$x
-
-foreach ($server in $serviceData.Servers) {
-    $server
-
+$exit=$false
+foreach($server in $SessionHash.Keys) {
+    $session = $SessionHash[$server]    
+    if ($session.GetType().Name -ne "PSSession") {        
+        Msg ($server + ":" + $session ) -Type Error
+        $exit=$True
+    }
 }
-"SS"
 
+#Exit if any session is missing
+if ($exit) {Exit}
 
-
-Exit
-
-
+#Finally we get to do some real work!
 foreach ($serviceAccount in ($AccountList | Get-Member -MemberType NoteProperty)) {
     Msg "Process $($serviceAccount.Name)"
 
@@ -154,6 +201,7 @@ foreach ($serviceAccount in ($AccountList | Get-Member -MemberType NoteProperty)
 
     if ([string]::IsNullOrEmpty($serviceData.LastChanged)) {
         #Set new password!
+        ChangePasswordForAccount -AccountName $serviceAccount.Name -PasswordLength $settings.AccountPolicy.PasswordLength -serviceData $serviceData -sessionHash $SessionHash -supportedTypes $supportedTypes
 
         #Save lastChange
         $settings.ServiceAccounts.($serviceAccount.Name) | Add-Member -MemberType NoteProperty -Name "LastChanged" -Value (Get-Date -Format "yyyy-MM-dd") -Force
@@ -166,18 +214,23 @@ foreach ($serviceAccount in ($AccountList | Get-Member -MemberType NoteProperty)
         Write-Verbose ("Due change " + $lastChanged.AddDays($settings.AccountPolicy.PasswordAge) + " - Random [$spanDays] due date: " + (Get-Date).AddDays($spanDays))
         
         if ($lastChanged.AddDays($settings.AccountPolicy.PasswordAge) -le (Get-Date)) {
-            "Its long overdue!!"
+            
+            #Long overdue. Change now!
+            ChangePasswordForAccount -AccountName $serviceAccount.Name -PasswordLength $settings.AccountPolicy.PasswordLength -serviceData $serviceData -sessionHash $SessionHash -supportedTypes $supportedTypes
 
             $settings.ServiceAccounts.($serviceAccount.Name) | Add-Member -MemberType NoteProperty -Name "LastChanged" -Value (Get-Date -Format "yyyy-MM-dd") -Force
         }
         elseif ($lastChanged.AddDays($settings.AccountPolicy.PasswordAge) -le (Get-Date).AddDays($spanDays)) {
-            "Random change!"
+            
+            #Change within interval at ramdom selection            
+            ChangePasswordForAccount -AccountName $serviceAccount.Name -PasswordLength $settings.AccountPolicy.PasswordLength -serviceData $serviceData -sessionHash $SessionHash -supportedTypes $supportedTypes
+
             $settings.ServiceAccounts.($serviceAccount.Name) | Add-Member -MemberType NoteProperty -Name "LastChanged" -Value (Get-Date -Format "yyyy-MM-dd") -Force
         }                         
     }
 }
 
-#Save lastchanged dates
-$settings | ConvertTo-Json -Depth 10 | ForEach-Object { $_ -replace "    ", "  " } | Set-Content ($jsonFile + ".txt") -Force 
+#Save lastchanged dates (along with everything else)
+$settings | ConvertTo-Json -Depth 10 | ForEach-Object { $_ -replace "    ", "  " } | Set-Content ($AccountDataFile) -Force 
 
 Msg "End Execution"

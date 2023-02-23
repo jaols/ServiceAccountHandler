@@ -1,0 +1,36 @@
+{
+  "AccountPolicy": {
+    "PasswordLength": 20,
+    "PasswordAge": 90,
+    "ChangePeriod": 15
+  },
+  "NoPSSessionServers": [
+    "non-window",
+    "notexistserver"
+  ],
+  "ServiceAccounts": {
+    "svc-Foo": {
+      "Servers": {
+        "vmServer1": [
+          "ApplicationPool",
+          "ScheduleTask"
+        ],
+        "vmServer2": [
+          "WindowService",
+          "ScheduleTask"
+        ],
+        "vmServer3": [
+          "ApplicationPool"
+        ],
+        "notexistserver": [],
+        "non-window": []
+      }      
+    },
+    "svc-Bar": {
+      "Servers": {
+        "local": [],
+        "vmServer2": []
+      }      
+    }
+  }
+}
