@@ -106,7 +106,7 @@ There is also a setting for `NoSessionServers` list to indicate any servers not 
 }
 ```
 The sample above will generate a random 20 character password at a 90 days interval with a change period of 15 days. The account names to process are *svc-Foo* and *svc-Bar*. The *svc-Foo* account is used on 3 servers with preset password types. 
-The *svc-Bar* account is used on 2 servers without preset service types. The process will use ALL found `Set-[$Type]Password` for enumeration and settiung of passwords. 
+The *svc-Bar* account is used on 2 servers without preset service types. The process will use ALL found `Set-[$Type]Password` functions to enumerate instances and set new password.
 
 The `local` (or `localhost`) name points to the local host, no less.
 
