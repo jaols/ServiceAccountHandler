@@ -15,9 +15,11 @@
 
 ## Introduction
 
-The ServiceAccountHandler solution is a set of PowerShell scripts and `json` files that will make it possible to finally be able to change passwords for service accounts in a controlled way. The solution is highly customizable by using "plug-in" functions.
+The ServiceAccountHandler solution is a set of PowerShell scripts and `json` files that will make it possible to finally be able to change passwords for service accounts in a controlled way. The process will first establish connections with the listed remote servers. If one or more connection fails then the process is aborted, otherwize the service acccount password is changed in Active Directory. Then the set password is changed for any found IIS application pool, Task Manager task and Windows service (Or any other supported password type).
 
-The solution is primarally targeted for Windows.  
+It is possible to have several service accounts and servers in the `json` file that controls the process.
+
+The solution is highly customizable by using "plug-in" password functions.
 
 ## Why?
 
@@ -29,19 +31,19 @@ Because we want to secure our environment.
 
 ## Requirements
 
-This solution is based on the PSJumpStart module found in [PowerShell Gallery](https://www.powershellgallery.com/packages/PSJumpStart)
+This solution is based on the PSJumpStart module found in [PowerShell Gallery](https://www.powershellgallery.com/packages/PSJumpStart) or [GitHub](https://github.com/jaols/PSJumpStart/tree/master/PSJumpStart)
 
 ## Installation
 
 Run a PowerShell session as Administrator to get a global installation of the PSJumpstart module with the command `Install-Module -Name PSJumpStart`. It is also possible to download a `zip` file from [GitHub](https://github.com/jaols/PSJumpStart) and copy the content to the local modules folder. The typical target folder would be `C:\Program Files\WindowsPowerShell\Modules\PSJumpStart\n.n.n` where `n.n.n` is the current version of the module.
 
-This module may also be installed from [PowerShell Gallery](https://www.powershellgallery.com/packages/ServiceAccountHandler) or downloaded from [GitHub](https://github.com/jaols/ServiceAccountHandler)
+This solution may also soon be installed from [PowerShell Gallery](https://www.powershellgallery.com/packages/ServiceAccountHandler) or downloaded from [GitHub](https://github.com/jaols/ServiceAccountHandler)
 
 ## Usage overview
 
-Please remember to run `ServiceAccountPasswordHandler.ps1` with elevated rights or you may miss out on objects that should be processed. In fact you'll get an error if you don't.
+Please remember to run `ServiceAccountPasswordHandler.ps1` with elevated rights or you may miss out on objects that should be processed. In fact you'll get an error if you don't run as Administrator.
 
-It is possible to have a central execution of password change for all service accounts with one input `json` file or a distributed solution (on selected servers) with several input files. The key issue is never having the same account name in two files wherever they may be. The default setting file for `ServiceAccountPasswordHandler.ps1` is `ServiceAccountPasswordHandler.json`. This may be used for account data as well as environment settings, or you may create seperate environment setting files. 
+It is possible to have a central execution of password change for all service accounts with one input `json` file or a distributed solution (on selected system specific servers) with several account data `json` files. The key issue is never having the same account name in two files wherever they may be. The default setting file for `ServiceAccountPasswordHandler.ps1` is `ServiceAccountPasswordHandler.json`. This may be used for account data as well as environment settings, or you may create seperate environment setting files. Environment settings set standard arguments using `$PSDefaultParameterValues`.
 
 The provided `DomainName.json` is an environment settings file to be renamed for local usage. The environment setting files are read in the following order (and priority):
 
@@ -52,7 +54,7 @@ The provided `DomainName.json` is an environment settings file to be renamed for
 5. Any other loaded module name in the PSJumpStart module folder (for instance an `ActiveDirectory.json` file)
 6. The `PSJumpStart.json`file in the module folder for PSJumpStart.
 
-The `ServiceAccountPasswordHandler.ps1` may be setup to run as a scheduled task using `runServiceAccountPasswordHandler.cmd`. The `cmd` file will catch exceptions otherwize lost in Task Scheduler.
+The `ServiceAccountPasswordHandler.ps1` may be setup to run as a scheduled task using the included `runServiceAccountPasswordHandler.cmd`. The `cmd` file will catch exceptions otherwize lost in Task Scheduler.
 
 ## The account data file 
 
@@ -61,7 +63,7 @@ The account data `json` file has two main sectionns:
 - `AccountPolicy` has the settings for account settings, such as password length and age.
 - `ServiceAccounts` is a list of service accounts to process. Each entry in the list has a set of sub-settings.
 
-There is also a setting for `NoSessionServer` list to indicate any servers not possible to reach by a PSsession object.
+There is also a setting for `NoSessionServers` list to indicate any servers not possible to reach by a PSsession object.
 
 ### Account data `json` file samples
 
@@ -138,7 +140,7 @@ When a customized password type is in place the type name may be used in the acc
 
 ### PSsessions
 
-The handler will (re-)use created PSsessions when executing `Invoke-Command` on remote computers. It is possible to prep those PSsessions with credentials using `New-HandlerPSsessions.ps1`. 
+The handler will (re-)use created PSsessions when executing `Invoke-Command` on remote computers. It is possible to prep those PSsessions with credentials using `New-HandlerPSsessions.ps1`. The file may also be used to check if connections in the `json` file can be established. Use `Get-Help New-HandlerPSsessions.ps1` for more info.
 
 Support for port option SPN is in place for PSsessions due to a problem described here - https://www.vincecarbone.com/2021/06/11/owershell-remoting-results-in-errorcode-0x80090322/
 
