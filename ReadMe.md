@@ -15,11 +15,11 @@
 
 ## Introduction
 
-The ServiceAccountHandler solution is a set of PowerShell scripts and `json` files that will make it possible to finally be able to change passwords for service accounts in a controlled way. The process will first establish connections with the listed remote servers. If one or more connection fails then the process is aborted, otherwize the service acccount password is changed in Active Directory. Then the set password is changed for any found IIS application pool, Task Manager task and Windows service (Or any other supported password type).
+The ServiceAccountHandler solution is a set of PowerShell scripts and `json` files that will make it possible to finally be able to change passwords for service accounts in a controlled way. The process will first establish connections with the listed remote servers. If one or more connection fails then the process is aborted, otherwize the service acccount password is changed in Active Directory. Then the set password is changed for any found IIS application pool, Task Manager task and Windows service (And any other supported password types).
 
 It is possible to have several service accounts and servers in the `json` file that controls the process.
 
-The solution is highly customizable by using "plug-in" password functions.
+The solution is highly customizable supporting "plug-in" password functions.
 
 ## Why?
 
