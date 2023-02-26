@@ -31,6 +31,8 @@ Because we want to secure our environment.
 
 ## Requirements
 
+Each service account usage need to be known. This is imperative as this solution will set an unknown password for each account. If a server or password type is missing in the account data file, that service/process/logon will fail at next usage attempt.
+
 This solution is based on the PSJumpStart module found in [PowerShell Gallery](https://www.powershellgallery.com/packages/PSJumpStart) or [GitHub](https://github.com/jaols/PSJumpStart/tree/master/PSJumpStart)
 
 ## Installation
