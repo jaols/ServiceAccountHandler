@@ -2,7 +2,8 @@ function Get-ServerSessions {
     [CmdletBinding(SupportsShouldProcess = $False)]
     param(
         [string[]]$ServerList,
-        [string[]]$ExcludeList
+        [string[]]$ExcludeList,
+        [pscredential]$Credential
     )
 
     $SessionHash = @{}
@@ -26,25 +27,32 @@ function Get-ServerSessions {
                     continue
                 }
 
+                $sessionArgs = @{
+                    "ErrorAction" = "Stop"
+                    "Name"        = $Server
+                    "Computer"    = $adServer.Name
+                }
+
+                #Establish by credential if present
+                if ($Credential) {
+                    $sessionArgs.Add("Credential", $Credential)
+                }
+                
                 #We use HTTP std port at this point.
                 if ($adServer.ServicePrincipalName -like "*5985") {
                     Write-Verbose "New Port-session"  
-                    try {
-                        $session = New-PSSession -ErrorAction Stop -Name $server -ComputerName $adServer.Name -SessionOption $option
-                    } catch {
-                        $SessionHash.Add($server, $PSItem)
-                        continue
-                    }
+                    $sessionArgs.Add("SessionOption", $option)
+                } else {
+                    Write-Verbose "New Standard-session"
                 }
-                else {
-                    Write-Verbose "New Standard-session"                    
-                    try {
-                        $session = New-PSSession -ErrorAction Stop -Name $server -ComputerName $adServer.Name
-                    } catch {
-                        $SessionHash.Add($server, $PSItem)
-                        continue
-                    }
+                
+                try {
+                    $session = New-PSSession @sessionArgs
+                } catch {
+                    $SessionHash.Add($server, $PSItem)
+                    continue
                 }
+
             }
             $SessionHash.Add($server, $session)
         }
