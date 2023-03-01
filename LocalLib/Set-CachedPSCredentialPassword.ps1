@@ -1,15 +1,19 @@
 function Set-CachedPSCredentialPassword {
     <#
     .Synopsis
-        Set new password for an account running schedule task(s)
+        Set new password in PowerShell credential files
     .DESCRIPTION
-        This is part of the ServiceAccountHandler solution. Thus having a fixed number of arguments.
+        This is part of the ServiceAccountHandler solution. The tricky part with PSCredentials files is that they are encrypted by current user+current computer context. 
     .PARAMETER AccountName
         Account name 
     .PARAMETER Password
         New password to use
     .PARAMETER ComputerName
         Target remote computer
+    .PARAMETER SearchPaths
+        Folders to enumerate for files
+    .PARAMETER FileNameFilter
+        Files to search for (populated by $PSDefaultParameters from json file)
     .PARAMETER Session
         Existing PSsession object to remote computer
     
@@ -20,12 +24,15 @@ function Set-CachedPSCredentialPassword {
         [string]$AccountName,
         [string]$Password,
         [string]$ComputerName,
+        [string[]]$SearchPaths,
+        [string]$FileNameFilter,
         [System.Management.Automation.Runspaces.PSSession]$session
     )
     
     if ([string]::IsNullOrEmpty($ComputerName) -or $ComputerName -ieq "local" -or $ComputerName -eq ".") {        
         $instances=@()
         try {
+            #NOT IMPLEMENTED YET!!!
         } catch {            
             $instances+=$PSItem
         }        
