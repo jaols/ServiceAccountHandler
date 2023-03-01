@@ -139,6 +139,7 @@ if ($serviceData.Servers) {
 }
 $SessionHash = Get-ServerSessions $ServerList -ExcludeList $settings.NoPSSessionServers
 
+Msg ("Password for $AccountName was changed by [" + (whoami) + "]")
 Set-ADAccountPassword -Identity $AccountName -NewPassword (ConvertTo-SecureString -string "$TempPassword" -AsPlainText -Force)
 
 #Server list or local only
