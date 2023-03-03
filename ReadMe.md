@@ -2,6 +2,7 @@
 
   * [Introduction](#introduction) 
   * [Why?](#why-)
+  * [The gMSA/sMSA alternative](#the-gmsasmsa-alternative)
   * [Requirements](#requirements)
   * [Installation](#installation)
   * [Usage overview](#usage-overview)
@@ -28,6 +29,16 @@ Because we want to get control of service account usage. A service account used 
 Because no one should know a password to a service account. I's a service account! Having said that it is of course possible to set a temporary known password.
 
 Because we want to secure our environment.
+
+Because we find it difficult to start PowerShell ISE (or any other editor) as a gMSA account to debug in user context. Or there are other reasons for not using gMSA.
+
+## The gMSA/sMSA alternative
+
+There is an alternative solution to prevent service account password leakage - [Group Managed Service Accounts](https://learn.microsoft.com/en-us/windows-server/security/group-managed-service-accounts/getting-started-with-group-managed-service-accounts)
+
+This article describes how to debug a C# console app as a gMSA account in [Visual Studio 2022](https://stackoverflow.com/questions/73087060/how-to-debug-a-visual-studio-2022-console-application-running-as-a-service-using)
+
+It also seems possible to drill down the rabbit hole to [get the gSMA password](https://aadinternals.com/post/gmsa/)
 
 ## Requirements
 
