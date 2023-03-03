@@ -38,7 +38,7 @@ There is an alternative solution to prevent service account password leakage - [
 
 This article describes how to debug a C# console app as a gMSA account in [Visual Studio 2022](https://stackoverflow.com/questions/73087060/how-to-debug-a-visual-studio-2022-console-application-running-as-a-service-using)
 
-It also seems possible to drill down the rabbit hole to [get the gSMA password](https://aadinternals.com/post/gmsa/)
+It also seems possible to drill down the rabbit hole to [get a gSMA password](https://aadinternals.com/post/gmsa/)
 
 ## Requirements
 
